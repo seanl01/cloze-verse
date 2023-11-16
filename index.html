@@ -22,13 +22,18 @@
         <div id="app" style>
             <header>
                 <verse-selector v-model="reference">
-                    <button @click="addVerse()">+</button>
+                    <button @click="addVerse()">
+                        <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+                        <span v-else>+</span>
+                    </button>
                 </verse-selector>
             </header>
             <!-- {{ reference }} -->
             <section style="margin-top: 2rem;">
-                <verse-card @remove="key => { remove(key) }" v-for="(verse, index) in verses" :verse="verse" :key="index"
-                    :index="index"></verse-card>
+                <transition-group>
+                    <verse-card @remove="key => { remove(key) }" v-for="(verse, index) in verses" :verse="verse"
+                        :key="index" :index="index"></verse-card>
+                </transition-group>
             </section>
         </div>
     </div>
@@ -42,7 +47,8 @@
         data() {
             return {
                 reference: "",
-                verses: []
+                verses: [],
+                loading: false,
             }
         },
         mounted() {
@@ -50,14 +56,17 @@
         },
         methods: {
             addVerse() {
+                this.loading = true;
                 const url = "https://bible-api.com/" + this.reference;
                 axios.get(url)
                     .then(response => {
                         const verse = response.data;
                         this.verses.push(verse)
+                        this.loading = false;
                         localStorage.setItem("verses", JSON.stringify(this.verses))
                     })
                     .catch((err) => {
+                        this.loading = false;
                         console.error("Invalid API Call")
                     })
             },
@@ -265,6 +274,7 @@
     select {
         width: fit-content;
     }
+
     input[type=number] {
         width: 4rem;
     }
@@ -279,16 +289,19 @@
         font-size: 1.5rem;
         /* border: 1px solid gray; */
         border-radius: 1.5rem;
-        transform: translateX(1px);;
+        transform: translateX(1px);
+        ;
         background-color: rgb(246, 246, 246);
-        box-shadow: 0px 1px 2px rgba(0,0,0,0.2);
+        box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
         transition: all 0.1s ease;
     }
+
     button:hover {
         transform: scale(1.05);
         border: 1px solid lightgray;
-        box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
     }
+
     button:active {
         background-color: lightgray;
     }
@@ -348,6 +361,18 @@
     .verse-header:hover .remove {
         /* max-width: 100rem; */
         display: inline-block;
+    }
+
+
+    /* TRANSITION || */
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.5s;
+    }
+
+    .fade-enter,
+    .fade-leave-to {
+        opacity: 0;
     }
 </style>
 
