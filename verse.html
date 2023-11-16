@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://unpkg.com/vue@next"></script>
+    <script src="https://kit.fontawesome.com/2cf16f6542.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <style>
@@ -19,12 +20,15 @@
     <div class="container">
         <h1>Cloze Verse</h1>
         <div id="app" style>
-            <verse-selector v-model="reference">
-                <button @click="addVerse()">Add</button>
-            </verse-selector>
+            <header>
+                <verse-selector v-model="reference">
+                    <button @click="addVerse()">+</button>
+                </verse-selector>
+            </header>
             <!-- {{ reference }} -->
             <section style="margin-top: 2rem;">
-                <verse-card @close="key => { close(key) }" v-for="verse in verses" :verse="verse" :key="index" :index="index"></verse-card>
+                <verse-card @remove="key => { remove(key) }" v-for="(verse, index) in verses" :verse="verse" :key="index"
+                    :index="index"></verse-card>
             </section>
         </div>
     </div>
@@ -33,7 +37,6 @@
     </div> -->
 </body>
 <script>
-
 
     const app = Vue.createApp({
         data() {
@@ -58,10 +61,10 @@
                         console.error("Invalid API Call")
                     })
             },
-            close(key) {
-                this.verses.splice(key, 1)
+            remove(index) {
+                this.verses.splice(index, 1)
                 localStorage.setItem("verses", JSON.stringify(this.verses))
-            }
+            },
         }
     })
 
@@ -69,11 +72,12 @@
         template: /*html*/`
         <div class='verse-selector'>
             <select @change="emitReference" v-model="book" name="" id="">
+                <option value="" selected disabled>Book</option>
                 <option v-for="book in books" :value="book">{{ toCapitalCase(book) }}</option>
             </select>
-            <input @change="emitReference" v-model="chapter" placeholder="chapter" type="number" name="" id="" />
-            :
-            <input @change="emitReference" v-model="verse" placeholder="verse" type="number" name="" id="" />
+            <input @change="emitReference" v-model="chapter" placeholder="Chapter" type="number" name="" id="" />
+            <span style="display:flex; align-items:center; padding-bottom: 2px">:</span>
+            <input @change="emitReference" v-model="verse" placeholder="Verse" type="number" name="" id="" />
             <slot></slot>
         </div>
             `,
@@ -110,22 +114,22 @@
     app.component("verse-card", {
         template: /*html*/`
         <div class="verse-card">
-            <verse-header @close="close()">
+            <verse-header @remove="remove()" @show="show()" @hide="hide()" :hide-all="hideAll">
                 {{ verse?.reference }}
             </verse-header>
-            <p>
-                <template v-for="(chunk, index) in chunks">
-                    <mark :class="[active[index] ? cloze: '']"
+            <p :key="verse?.reference + index" :id="verse?.reference + index">
+                <span v-for="(chunk, chunkInd) in chunks" :key="verse?.reference + chunkInd">
+                    <mark :class="[active[chunkInd] ? cloze: '']"
                     title="Hover to reveal!"
-                    @click="() => {active[index] = !active[index]}"
+                    @click="() => {active[chunkInd] = !active[chunkInd]}"
                     >{{ chunk }}</mark>
-                    {{ punctuation[index] }}
-                </template>
+                    {{ punctuation[chunkInd] }}
+                </span>
             </p>
         </div>
         `,
         props: ["verse", "index"],
-        emits: ["close"],
+        emits: ["remove", "show"],
         data() {
             return {
                 verseText: null,
@@ -136,15 +140,37 @@
             }
         },
         mounted() {
-            this.verseText = this.verse?.verses[0]?.text,
+            this.verseText = this.verse?.text;
             this.chunks = this.verseText.split(/[,.;]/g);
             this.punctuation = this.verseText.match(/[,.;]/g);
             this.active = Array(this.chunks.length).fill(true)
         },
+        watch: {
+            verse: {
+                handler() {
+                    this.verseText = this.verse?.text;
+                    this.chunks = this.verseText.split(/[,.;]/g);
+                    this.punctuation = this.verseText.match(/[,.;]/g);
+                    this.active = Array(this.chunks.length).fill(true);
+                },
+                immediate: true
+            }
+        },
+        computed: {
+            hideAll() {
+                return this.active.reduce((prev, cur) => prev && cur, true)
+            }
+        },
         methods: {
-            close(){
-                this.$emit("close", this.index)
+            remove() {
+                this.$emit("remove", this.index)
                 console.log(this.index)
+            },
+            show() {
+                this.active = this.active.map((val) => false)
+            },
+            hide() {
+                this.active = this.active.map(val => true)
             }
         }
     })
@@ -152,13 +178,16 @@
     app.component("verse-header", {
         template: `<section class='verse-header'>
             <h3><slot></slot></h3>
-            <h3 class="close" style="margin-left: 1rem" @click="$emit('close')">
+            <h3 class="remove" style="margin-left:0.6rem;">
+                <i v-if="hideAll" class="fa-solid fa-eye remove" style="font-size:1rem" @click="$emit('show')"></i>
+                <i v-else class="fa-solid fa-eye-slash remove" style="font-size:1rem" @click="$emit('hide')"></i>
+            </h3>
+            <h3 class="remove" style="margin-left:0.6rem" @click="$emit('remove')">
                 <span>&times;</span></h3>
             </section>
         `,
-        methods: {
-            emits: ["close"],
-        }
+        emits: ["remove", "show", "hide"],
+        props: ["hide-all"]
     })
 
     app.mount("#app")
@@ -193,15 +222,26 @@
         .container {
             width: 80%;
         }
+
+        .verse-selector {
+            margin: auto;
+            width: 100%;
+        }
+
+        header {
+            margin: auto;
+            width: 80%;
+        }
     }
 
     .verse-selector {
         /* width: min-content; */
         width: fit-content;
-        padding: 1rem 2rem;
-        /* border: 1px solid gray; */
+        height: 3rem;
+        /* padding: 1rem 2rem; */
+        border: 1px solid lightgray;
         box-shadow: 0 5px 5px rgba(0, 0, 0, 0.2);
-        border-radius: 1rem;
+        border-radius: 1.5rem;
 
         background-color: white;
         color: gray;
@@ -213,20 +253,51 @@
     select,
     input[type=number],
     button {
+        font-family: 'DM Serif Display', serif;
+        color: gray;
+        text-align: center;
         display: inline-block;
         background-color: transparent;
-        border: 1px solid gray;
-        border-radius: 0.5rem;
+        border: 1px solid transparent;
+        /* border-radius: 1rem; */
     }
 
+    select {
+        width: fit-content;
+    }
     input[type=number] {
-        width: 5rem;
+        width: 4rem;
     }
 
+    input[type=number]:focus {
+        border: 1px solid lightgray;
+    }
+
+    button {
+        /* border-radius: 0rem 1rem 1rem 0rem; */
+        aspect-ratio: 1/1;
+        font-size: 1.5rem;
+        /* border: 1px solid gray; */
+        border-radius: 1.5rem;
+        transform: translateX(1px);;
+        background-color: rgb(246, 246, 246);
+        box-shadow: 0px 1px 2px rgba(0,0,0,0.2);
+        transition: all 0.1s ease;
+    }
+    button:hover {
+        transform: scale(1.05);
+        border: 1px solid lightgray;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.2);
+    }
     button:active {
         background-color: lightgray;
     }
 
+    i {
+        display: flex;
+        text-align: center;
+        width: 1.4rem;
+    }
 
     /* CLOZE || */
 
@@ -255,33 +326,29 @@
         /* transition: all 0.4s ease; */
     }
 
-    .verse-header > h3 {
+    .verse-header>h3 {
         margin: 0;
         display: inline-block;
     }
-    
-    .verse-header > .close {
+
+    .verse-header>.remove {
         display: none;
-        cursor: pointer;
         transition: color 0.2s ease;
         color: lightgray;
     }
 
-    .close:hover {
+    .remove:hover {
         color: black;
     }
-    
+
     .verse-header:hover {
         cursor: pointer;
     }
-    
-    .verse-header:hover .close {
+
+    .verse-header:hover .remove {
         /* max-width: 100rem; */
         display: inline-block;
     }
-
-    
-
 </style>
 
 </html>
