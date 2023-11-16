@@ -374,6 +374,32 @@
     .fade-leave-to {
         opacity: 0;
     }
+
+
+    /* Animations || */
+    @keyframes reveal {
+        from {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0%);
+            opacity: 1;
+        }
+    }
+
+    .verse-card {
+        /* Create View Timeline */
+        view-timeline-name: --revealing-image;
+        view-timeline-axis: block;
+
+        /* Attach animation, linked to the  View Timeline */
+        animation: linear reveal both;
+        animation-timeline: --revealing-image;
+
+        /* Tweak range when effect should run*/
+        animation-range: entry 10% cover 30%;
+    }
 </style>
 
 </html>
