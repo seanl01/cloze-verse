@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/vue@next"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap');
+    </style>
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="cover"></div>
+    <div class="container">
+        <h1>Cloze Verse</h1>
+        <div id="app" style>
+            <verse-selector v-model="reference">
+                <button @click="addVerse()">Add</button>
+            </verse-selector>
+            <!-- {{ reference }} -->
+            <section style="margin-top: 2rem;">
+                <verse-card @close="key => { close(key) }" v-for="verse in verses" :verse="verse" :key="index" :index="index"></verse-card>
+            </section>
+        </div>
+    </div>
+    <!-- <div class="verse-header">
+        <h3>John 3:3</h3>
+    </div> -->
+</body>
+<script>
+
+
+    const app = Vue.createApp({
+        data() {
+            return {
+                reference: "",
+                verses: []
+            }
+        },
+        mounted() {
+            this.verses = JSON.parse(localStorage.getItem("verses")) ?? []
+        },
+        methods: {
+            addVerse() {
+                const url = "https://bible-api.com/" + this.reference;
+                axios.get(url)
+                    .then(response => {
+                        const verse = response.data;
+                        this.verses.push(verse)
+                        localStorage.setItem("verses", JSON.stringify(this.verses))
+                    })
+                    .catch((err) => {
+                        console.error("Invalid API Call")
+                    })
+            },
+            close(key) {
+                this.verses.splice(key, 1)
+                localStorage.setItem("verses", JSON.stringify(this.verses))
+            }
+        }
+    })
+
+    app.component('verse-selector', {
+        template: /*html*/`
+        <div class='verse-selector'>
+            <select @change="emitReference" v-model="book" name="" id="">
+                <option v-for="book in books" :value="book">{{ toCapitalCase(book) }}</option>
+            </select>
+            <input @change="emitReference" v-model="chapter" placeholder="chapter" type="number" name="" id="" />
+            :
+            <input @change="emitReference" v-model="verse" placeholder="verse" type="number" name="" id="" />
+            <slot></slot>
+        </div>
+            `,
+        props: ["modelValue"],
+        emits: ["update:modelValue"],
+        data() {
+            return {
+                book: "",
+                chapter: "",
+                verse: "",
+                books: ["genesis", "john", "matthew"]
+            }
+        },
+        computed: {
+            reference() {
+                return this.book + " " + this.chapter + ":" + this.verse
+            }
+        },
+        methods: {
+            capitalise(word) {
+                return word[0].toUpperCase() + word.slice(1)
+            },
+
+            toCapitalCase(s) {
+                const words = s.split(" ")
+                return words.reduce((cumul, curWord) => cumul + " " + this.capitalise(curWord), "")
+            },
+            emitReference() {
+                this.$emit('update:modelValue', this.reference);
+            }
+        }
+    })
+
+    app.component("verse-card", {
+        template: /*html*/`
+        <div class="verse-card">
+            <verse-header @close="close()">
+                {{ verse?.reference }}
+            </verse-header>
+            <p>
+                <template v-for="(chunk, index) in chunks">
+                    <mark :class="[active[index] ? cloze: '']"
+                    title="Hover to reveal!"
+                    @click="() => {active[index] = !active[index]}"
+                    >{{ chunk }}</mark>
+                    {{ punctuation[index] }}
+                </template>
+            </p>
+        </div>
+        `,
+        props: ["verse", "index"],
+        emits: ["close"],
+        data() {
+            return {
+                verseText: null,
+                chunks: [],
+                punctuation: [],
+                active: [],
+                cloze: "cloze"
+            }
+        },
+        mounted() {
+            this.verseText = this.verse?.verses[0]?.text,
+            this.chunks = this.verseText.split(/[,.;]/g);
+            this.punctuation = this.verseText.match(/[,.;]/g);
+            this.active = Array(this.chunks.length).fill(true)
+        },
+        methods: {
+            close(){
+                this.$emit("close", this.index)
+                console.log(this.index)
+            }
+        }
+    })
+
+    app.component("verse-header", {
+        template: `<section class='verse-header'>
+            <h3><slot></slot></h3>
+            <h3 class="close" style="margin-left: 1rem" @click="$emit('close')">
+                <span>&times;</span></h3>
+            </section>
+        `,
+        methods: {
+            emits: ["close"],
+        }
+    })
+
+    app.mount("#app")
+
+</script>
+<style>
+    html {
+        font-family: 'DM Serif Display', serif;
+    }
+
+    body {
+        margin: 0;
+    }
+
+    .cover {
+        width: 100%;
+        background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(255, 255, 255, 1)), url(https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?ixid=M3w1MDYyMTh8MHwxfHNlYXJjaHw1fHxtb3VudGFpbnxlbnwwfDB8fHwxNzAwMTM4OTA5fDA&ixlib=rb-4.0.3);
+        background-size: cover;
+        background-position: center center;
+        min-height: 20rem;
+    }
+
+    .container {
+        /* border: 1px solid red; */
+        position: relative;
+        top: -8rem;
+        width: 70%;
+        margin: auto;
+    }
+
+    @media (max-width: 576px) {
+        .container {
+            width: 80%;
+        }
+    }
+
+    .verse-selector {
+        /* width: min-content; */
+        width: fit-content;
+        padding: 1rem 2rem;
+        /* border: 1px solid gray; */
+        box-shadow: 0 5px 5px rgba(0, 0, 0, 0.2);
+        border-radius: 1rem;
+
+        background-color: white;
+        color: gray;
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    select,
+    input[type=number],
+    button {
+        display: inline-block;
+        background-color: transparent;
+        border: 1px solid gray;
+        border-radius: 0.5rem;
+    }
+
+    input[type=number] {
+        width: 5rem;
+    }
+
+    button:active {
+        background-color: lightgray;
+    }
+
+
+    /* CLOZE || */
+
+    .cloze {
+        color: transparent;
+        background-color: rgb(255, 255, 184);
+        text-decoration-line: underline;
+        text-decoration-color: lightgray;
+    }
+
+    mark {
+        background-color: transparent;
+        color: black;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .verse-header {
+        width: fit-content;
+        padding: 0.6rem;
+        background-color: white;
+        /* box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2); */
+        border: 1px solid lightgray;
+        border-radius: 3rem;
+        overflow: hidden;
+        /* transition: all 0.4s ease; */
+    }
+
+    .verse-header > h3 {
+        margin: 0;
+        display: inline-block;
+    }
+    
+    .verse-header > .close {
+        display: none;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        color: lightgray;
+    }
+
+    .close:hover {
+        color: black;
+    }
+    
+    .verse-header:hover {
+        cursor: pointer;
+    }
+    
+    .verse-header:hover .close {
+        /* max-width: 100rem; */
+        display: inline-block;
+    }
+
+    
+
+</style>
+
+</html>
