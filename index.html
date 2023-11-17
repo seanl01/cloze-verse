@@ -191,8 +191,8 @@
                 <i v-if="hideAll" class="fa-solid fa-eye remove" style="font-size:1rem" @click="$emit('show')"></i>
                 <i v-else class="fa-solid fa-eye-slash remove" style="font-size:1rem" @click="$emit('hide')"></i>
             </h3>
-            <h3 class="remove" style="margin-left:0.6rem" @click="$emit('remove')">
-                <span>&times;</span></h3>
+            <h3 class="remove" style="margin-left:0.4rem" @click="$emit('remove')">
+                <i class="fa-solid fa-trash-can" style="font-size:1rem"></i></h3>
             </section>
         `,
         emits: ["remove", "show", "hide"],
